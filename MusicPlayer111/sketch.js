@@ -235,29 +235,29 @@ function drawKnob(x, y, val, label) {
 }
 
 /* ===============================
-   VOLUME SLIDER
+   VOLUME SLIDER (偏左下，唱片下)
 ================================ */
 
 function drawVolumeSlider() {
-  let x = 760;
-  let y = height - 100;
-  let w = 160;
+  let cx = 240; // 與唱片同中心
+  let y = height / 2 + 160; // 唱片下方
+  let w = 140;
   let h = 8;
 
   // 背景
   fill(50);
   noStroke();
-  rect(x, y, w, h, 4);
+  rect(cx - w/2, y, w, h, 4);
 
   // 音量條
   fill(200);
-  rect(x, y, w * volume, h, 4);
+  rect(cx - w/2, y, w * volume, h, 4);
 
   // 標示文字
   fill(180);
   textSize(12);
   textAlign(CENTER, BOTTOM);
-  text("Volume: " + Math.round(volume * 100) + "%", x + w/2, y - 5);
+  text("Volume: " + Math.round(volume * 100) + "%", cx, y - 5);
 }
 
 /* ===============================
@@ -306,13 +306,12 @@ function mousePressed() {
   if (dist(mouseX, mouseY, 820, height - 60) < 18) draggingKnob = "mid";
   if (dist(mouseX, mouseY, 880, height - 60) < 18) draggingKnob = "high";
 
-  // 音量滑桿
-  if (
-    mouseY > height - 100 - 5 &&
-    mouseY < height - 100 + 15 &&
-    mouseX > 760 &&
-    mouseX < 920
-  ) {
+  // 音量滑桿（偏左下）
+  let vx = 240 - 70;
+  let vy = height/2 + 160;
+  let vw = 140;
+  let vh = 8;
+  if (mouseX > vx && mouseX < vx + vw && mouseY > vy && mouseY < vy + vh + 10) {
     draggingVolume = true;
     updateVolume(mouseX);
   }
@@ -355,7 +354,8 @@ function mouseReleased() {
 }
 
 function updateVolume(mx) {
-  volume = constrain((mx - 760) / 160, 0, 1);
+  let vx = 240 - 70;
+  volume = constrain((mx - vx) / 140, 0, 1);
   sound.setVolume(volume);
 }
 
