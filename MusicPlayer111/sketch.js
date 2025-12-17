@@ -235,12 +235,12 @@ function drawKnob(x, y, val, label) {
 }
 
 /* ===============================
-   VOLUME SLIDER (偏左下，唱片下)
+   VOLUME SLIDER (唱片下方，與進度條平行)
 ================================ */
 
 function drawVolumeSlider() {
-  let cx = 240; // 與唱片同中心
-  let y = height / 2 + 160; // 唱片下方
+  let cx = 240;
+  let y = height - 100; // 下移到與進度條平行
   let w = 140;
   let h = 8;
 
@@ -306,9 +306,9 @@ function mousePressed() {
   if (dist(mouseX, mouseY, 820, height - 60) < 18) draggingKnob = "mid";
   if (dist(mouseX, mouseY, 880, height - 60) < 18) draggingKnob = "high";
 
-  // 音量滑桿（偏左下）
+  // 音量滑桿
   let vx = 240 - 70;
-  let vy = height/2 + 160;
+  let vy = height - 100;
   let vw = 140;
   let vh = 8;
   if (mouseX > vx && mouseX < vx + vw && mouseY > vy && mouseY < vy + vh + 10) {
@@ -387,7 +387,7 @@ function changeTrack(i) {
   sound = loadSound(tracks[i].file, () => {
     setupAudioChain();
     sound.play();
-    sound.setVolume(volume); // 保持音量
+    sound.setVolume(volume);
     isPlaying = true;
   });
 }
