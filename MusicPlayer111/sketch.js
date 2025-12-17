@@ -12,7 +12,6 @@ let tracks = [
 let currentTrack = 0;
 let sound, fft;
 let isPlaying = false;
-let loopMode = false;
 
 /* ===============================
    AUDIO FILTERS (REAL)
@@ -30,6 +29,10 @@ let scratching = false;
 let lastMouseX = 0;
 let draggingProgress = false;
 let draggingKnob = null;
+
+// 音量控制
+let volume = 0.8; // 預設 80%
+let draggingVolume = false;
 
 /* ===============================
    CANVAS
@@ -53,7 +56,7 @@ function setup() {
   highPass = new p5.HighPass();
 
   setupAudioChain();
-  sound.onended(onTrackEnd);
+  sound.setVolume(volume); // 設定初始音量
 }
 
 function setupAudioChain() {
@@ -78,8 +81,10 @@ function draw() {
   drawProgress();
   drawControls();
   drawEQ();
+  drawVolumeSlider();
 
   applyEQ();
+  sound.setVolume(volume);
 }
 
 /* ===============================
@@ -197,7 +202,7 @@ function drawControls() {
   drawBtn(520, y, "⏮");
   drawBtn(580, y, isPlaying ? "⏸" : "▶");
   drawBtn(640, y, "⏭");
-  drawBtn(700, y, loopMode ? "🔁" : "➡");
+  // 循環鍵已移除
 }
 
 /* ===============================
@@ -231,6 +236,32 @@ function drawKnob(x, y, val, label) {
 }
 
 /* ===============================
+   VOLUME SLIDER
+================================ */
+
+function drawVolumeSlider() {
+  let x = 420;
+  let y = height - 60;
+  let w = 200;
+  let h = 8;
+
+  // 背景
+  fill(50);
+  noStroke();
+  rect(x, y, w, h, 4);
+
+  // 音量條
+  fill(200);
+  rect(x, y, w * volume, h, 4);
+
+  // 標示文字
+  fill(180);
+  textSize(12);
+  textAlign(LEFT, BOTTOM);
+  text("Volume: " + Math.round(volume * 100) + "%", x, y - 5);
+}
+
+/* ===============================
    BUTTON VISUAL
 ================================ */
 
@@ -255,7 +286,7 @@ function mousePressed() {
   if (dist(mouseX, mouseY, 580, height - 40) < 19) togglePlay();
   if (dist(mouseX, mouseY, 520, height - 40) < 19) prevTrack();
   if (dist(mouseX, mouseY, 640, height - 40) < 19) nextTrack();
-  if (dist(mouseX, mouseY, 700, height - 40) < 19) loopMode = !loopMode;
+  // 循環鍵已移除
 
   if (dist(mouseX, mouseY, 240, height / 2) < 140) {
     scratching = true;
@@ -276,6 +307,17 @@ function mousePressed() {
   if (dist(mouseX, mouseY, 760, height - 60) < 18) draggingKnob = "low";
   if (dist(mouseX, mouseY, 820, height - 60) < 18) draggingKnob = "mid";
   if (dist(mouseX, mouseY, 880, height - 60) < 18) draggingKnob = "high";
+
+  // 音量滑桿
+  if (
+    mouseY > height - 60 - 5 &&
+    mouseY < height - 60 + 15 &&
+    mouseX > 420 &&
+    mouseX < 620
+  ) {
+    draggingVolume = true;
+    updateVolume(mouseX);
+  }
 }
 
 function mouseDragged() {
@@ -300,6 +342,8 @@ function mouseDragged() {
       1
     );
   }
+
+  if (draggingVolume) updateVolume(mouseX);
 }
 
 function mouseReleased() {
@@ -309,6 +353,12 @@ function mouseReleased() {
   }
   draggingProgress = false;
   draggingKnob = null;
+  draggingVolume = false;
+}
+
+function updateVolume(mx) {
+  volume = constrain((mx - 420) / 200, 0, 1);
+  sound.setVolume(volume);
 }
 
 /* ===============================
@@ -336,22 +386,12 @@ function prevTrack() {
 function changeTrack(i) {
   sound.stop();
   currentTrack = i;
-
   sound = loadSound(tracks[i].file, () => {
     setupAudioChain();
-    sound.onended(onTrackEnd); // ★關鍵：每首歌都重新綁定
     sound.play();
+    sound.setVolume(volume); // 保持音量
     isPlaying = true;
   });
-}
-
-function onTrackEnd() {
-  if (loopMode) {
-    sound.jump(0);   // 回到開頭
-    sound.play();
-  } else {
-    nextTrack();
-  }
 }
 
 function applyEQ() {
