@@ -336,16 +336,22 @@ function prevTrack() {
 function changeTrack(i) {
   sound.stop();
   currentTrack = i;
+
   sound = loadSound(tracks[i].file, () => {
     setupAudioChain();
+    sound.onended(onTrackEnd); // ★關鍵：每首歌都重新綁定
     sound.play();
     isPlaying = true;
   });
 }
 
 function onTrackEnd() {
-  if (loopMode) sound.play();
-  else nextTrack();
+  if (loopMode) {
+    sound.jump(0);   // 回到開頭
+    sound.play();
+  } else {
+    nextTrack();
+  }
 }
 
 function applyEQ() {
