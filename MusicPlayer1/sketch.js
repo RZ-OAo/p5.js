@@ -1,4 +1,11 @@
 /* ===============================
+   DESIGN SIZE (DO NOT CHANGE)
+================================ */
+
+const DESIGN_W = 980;
+const DESIGN_H = 560;
+
+/* ===============================
    TRACK DATA
 ================================ */
 
@@ -15,7 +22,7 @@ let isPlaying = false;
 let loopMode = false;
 
 /* ===============================
-   AUDIO FILTERS
+   AUDIO
 ================================ */
 
 let lowPass, bandPass, highPass;
@@ -23,7 +30,7 @@ let eq = { low: 0, mid: 0, high: 0 };
 let volume = 0.8;
 
 /* ===============================
-   UI STATES
+   UI STATE
 ================================ */
 
 let vinylAngle = 0;
@@ -33,11 +40,21 @@ let draggingProgress = false;
 let draggingKnob = null;
 
 /* ===============================
-   CANVAS
+   LAYOUT SYSTEM
 ================================ */
 
-const W = 980;
-const H = 560;
+const LEFT_W = 360;
+const RIGHT_X = LEFT_W + 40;
+const TOP = 40;
+const LINE = 32;
+const CONTROL_Y = DESIGN_H - 90;
+const KNOB_Y = DESIGN_H - 45;
+
+/* ===============================
+   RESPONSIVE
+================================ */
+
+let scaleFactor = 1;
 
 function preload() {
   soundFormats("mp3");
@@ -45,8 +62,7 @@ function preload() {
 }
 
 function setup() {
-  createCanvas(W, H);
-
+  createCanvas(windowWidth, windowHeight);
   fft = new p5.FFT();
 
   lowPass = new p5.LowPass();
@@ -57,6 +73,14 @@ function setup() {
   sound.onended(onTrackEnd);
   sound.setVolume(volume);
 }
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+
+/* ===============================
+   AUDIO CHAIN
+================================ */
 
 function setupAudioChain() {
   sound.disconnect();
@@ -71,12 +95,20 @@ function setupAudioChain() {
 ================================ */
 
 function draw() {
-  background(15);
+  background(10);
 
+  scaleFactor = min(width / DESIGN_W, height / DESIGN_H);
+  translate(
+    (width - DESIGN_W * scaleFactor) / 2,
+    (height - DESIGN_H * scaleFactor) / 2
+  );
+  scale(scaleFactor);
+
+  drawPanels();
   drawVinyl();
-  drawSpectrum();
   drawTrackInfo();
   drawPlaylist();
+  drawSpectrum();
   drawProgress();
   drawControls();
   drawEQ();
@@ -86,18 +118,34 @@ function draw() {
 }
 
 /* ===============================
+   PANELS
+================================ */
+
+function drawPanels() {
+  noStroke();
+  fill(20);
+  rect(0, 0, LEFT_W, DESIGN_H);
+  rect(LEFT_W, 0, DESIGN_W - LEFT_W, DESIGN_H);
+
+  fill(15);
+  rect(LEFT_W, DESIGN_H - 140, DESIGN_W - LEFT_W, 140);
+}
+
+/* ===============================
    VINYL
 ================================ */
 
 function drawVinyl() {
-  let cx = 240, cy = height / 2, r = 140;
+  let cx = LEFT_W / 2;
+  let cy = DESIGN_H / 2;
+  let r = 140;
 
   push();
   translate(cx, cy);
   if (isPlaying && !scratching) vinylAngle += 0.02;
   rotate(vinylAngle);
 
-  stroke(80);
+  stroke(90);
   noFill();
   ellipse(0, 0, r * 2);
   for (let i = 60; i < r * 2; i += 12) ellipse(0, 0, i);
@@ -109,19 +157,39 @@ function drawVinyl() {
 }
 
 /* ===============================
+   INFO
+================================ */
+
+function drawTrackInfo() {
+  fill(230);
+  textSize(20);
+  textAlign(LEFT);
+  text(tracks[currentTrack].title, RIGHT_X, TOP);
+}
+
+function drawPlaylist() {
+  let y = TOP + 40;
+  textSize(14);
+  for (let i = 0; i < tracks.length; i++) {
+    fill(i === currentTrack ? 240 : 130);
+    text(tracks[i].title, RIGHT_X, y + i * LINE);
+  }
+}
+
+/* ===============================
    SPECTRUM
 ================================ */
 
 function drawSpectrum() {
   let spectrum = fft.analyze();
   push();
-  translate(500, height / 2);
+  translate(RIGHT_X + 260, DESIGN_H / 2 - 40);
   noFill();
-  stroke(200, 160);
+  stroke(180, 160);
   beginShape();
-  for (let i = 0; i < spectrum.length; i += 6) {
+  for (let i = 0; i < spectrum.length; i += 8) {
     let x = map(i, 0, spectrum.length, -200, 200);
-    let y = map(spectrum[i], 0, 255, 80, -80);
+    let y = map(spectrum[i], 0, 255, 60, -60);
     curveVertex(x, y);
   }
   endShape();
@@ -129,51 +197,27 @@ function drawSpectrum() {
 }
 
 /* ===============================
-   INFO
-================================ */
-
-function drawTrackInfo() {
-  fill(220);
-  textSize(18);
-  text(tracks[currentTrack].title, 420, 50);
-}
-
-/* ===============================
-   PLAYLIST
-================================ */
-
-function drawPlaylist() {
-  let y = 90;
-  textSize(13);
-  for (let i = 0; i < tracks.length; i++) {
-    fill(i === currentTrack ? 220 : 120);
-    text(tracks[i].title, 420, y + i * 32);
-  }
-}
-
-/* ===============================
    PROGRESS
 ================================ */
 
 function drawProgress() {
-  let x = 420, y = height - 100, w = 460;
+  let x = RIGHT_X;
+  let y = CONTROL_Y - 26;
+  let w = 520;
 
   stroke(80);
   line(x, y, x + w, y);
 
   if (!sound.isLoaded()) return;
-
   let p = sound.currentTime() / sound.duration();
+
   stroke(220);
   line(x, y, x + w * p, y);
 
   noStroke();
   fill(180);
   textSize(12);
-  text(
-    formatTime(sound.currentTime()) + " / " + formatTime(sound.duration()),
-    x, y + 18
-  );
+  text(formatTime(sound.currentTime()) + " / " + formatTime(sound.duration()), x, y + 16);
 }
 
 /* ===============================
@@ -181,25 +225,39 @@ function drawProgress() {
 ================================ */
 
 function drawControls() {
-  let y = height - 70;
-  drawBtn(520, y, "⏮");
-  drawBtn(580, y, isPlaying ? "⏸" : "▶");
-  drawBtn(640, y, "⏭");
-  drawBtn(700, y, loopMode ? "🔁" : "➡");
+  let x = RIGHT_X;
+  drawBtn(x + 40, CONTROL_Y, "⏮");
+  drawBtn(x + 100, CONTROL_Y, isPlaying ? "⏸" : "▶");
+  drawBtn(x + 160, CONTROL_Y, "⏭");
+  drawBtn(x + 220, CONTROL_Y, loopMode ? "🔁" : "➡");
 }
 
 /* ===============================
-   EQ + VOLUME
+   EQ + VOL
 ================================ */
 
 function drawEQ() {
-  drawKnob(720, height - 60, eq.low, "LOW");
-  drawKnob(780, height - 60, eq.mid, "MID");
-  drawKnob(840, height - 60, eq.high, "HIGH");
+  drawKnob(RIGHT_X + 320, KNOB_Y, eq.low, "LOW");
+  drawKnob(RIGHT_X + 380, KNOB_Y, eq.mid, "MID");
+  drawKnob(RIGHT_X + 440, KNOB_Y, eq.high, "HIGH");
 }
 
 function drawVolume() {
-  drawKnob(900, height - 60, map(volume, 0, 1, -1, 1), "VOL");
+  drawKnob(RIGHT_X + 500, KNOB_Y, map(volume, 0, 1, -1, 1), "VOL");
+}
+
+/* ===============================
+   UI ELEMENTS
+================================ */
+
+function drawBtn(x, y, label) {
+  fill(30);
+  stroke(120);
+  ellipse(x, y, 38);
+  fill(230);
+  noStroke();
+  textAlign(CENTER, CENTER);
+  text(label, x, y);
 }
 
 function drawKnob(x, y, val, label) {
@@ -221,59 +279,51 @@ function drawKnob(x, y, val, label) {
 }
 
 /* ===============================
-   BUTTON
-================================ */
-
-function drawBtn(x, y, label) {
-  fill(30);
-  stroke(120);
-  ellipse(x, y, 38);
-  fill(230);
-  noStroke();
-  textAlign(CENTER, CENTER);
-  text(label, x, y);
-}
-
-/* ===============================
    INTERACTION
 ================================ */
 
 function mousePressed() {
   userStartAudio();
 
-  if (dist(mouseX, mouseY, 580, height - 70) < 19) togglePlay();
-  if (dist(mouseX, mouseY, 520, height - 70) < 19) prevTrack();
-  if (dist(mouseX, mouseY, 640, height - 70) < 19) nextTrack();
-  if (dist(mouseX, mouseY, 700, height - 70) < 19) loopMode = !loopMode;
+  let mx = (mouseX - (width - DESIGN_W * scaleFactor) / 2) / scaleFactor;
+  let my = (mouseY - (height - DESIGN_H * scaleFactor) / 2) / scaleFactor;
 
-  if (dist(mouseX, mouseY, 240, height / 2) < 140) {
+  if (dist(mx, my, RIGHT_X + 100, CONTROL_Y) < 19) togglePlay();
+  if (dist(mx, my, RIGHT_X + 40, CONTROL_Y) < 19) prevTrack();
+  if (dist(mx, my, RIGHT_X + 160, CONTROL_Y) < 19) nextTrack();
+  if (dist(mx, my, RIGHT_X + 220, CONTROL_Y) < 19) loopMode = !loopMode;
+
+  if (dist(mx, my, LEFT_W / 2, DESIGN_H / 2) < 140) {
     scratching = true;
     sound.pause();
-    lastMouseX = mouseX;
+    lastMouseX = mx;
   }
 
-  let barY = height - 100;
-  if (mouseY > barY - 8 && mouseY < barY + 8 &&
-      mouseX > 420 && mouseX < 880) {
+  if (my > CONTROL_Y - 40 && my < CONTROL_Y - 20 &&
+      mx > RIGHT_X && mx < RIGHT_X + 520) {
     draggingProgress = true;
   }
 
-  if (dist(mouseX, mouseY, 720, height - 60) < 18) draggingKnob = "low";
-  if (dist(mouseX, mouseY, 780, height - 60) < 18) draggingKnob = "mid";
-  if (dist(mouseX, mouseY, 840, height - 60) < 18) draggingKnob = "high";
-  if (dist(mouseX, mouseY, 900, height - 60) < 18) draggingKnob = "volume";
+  if (dist(mx, my, RIGHT_X + 320, KNOB_Y) < 18) draggingKnob = "low";
+  if (dist(mx, my, RIGHT_X + 380, KNOB_Y) < 18) draggingKnob = "mid";
+  if (dist(mx, my, RIGHT_X + 440, KNOB_Y) < 18) draggingKnob = "high";
+  if (dist(mx, my, RIGHT_X + 500, KNOB_Y) < 18) draggingKnob = "volume";
 }
 
 function mouseDragged() {
-  if (scratching && sound.isLoaded()) {
-    let dx = mouseX - lastMouseX;
+  if (!sound.isLoaded()) return;
+
+  let mx = (mouseX - (width - DESIGN_W * scaleFactor) / 2) / scaleFactor;
+
+  if (scratching) {
+    let dx = mx - lastMouseX;
     sound.jump(constrain(sound.currentTime() + dx * 0.01, 0, sound.duration()));
     vinylAngle += dx * 0.01;
-    lastMouseX = mouseX;
+    lastMouseX = mx;
   }
 
-  if (draggingProgress && sound.isLoaded()) {
-    let p = constrain((mouseX - 420) / 460, 0, 1);
+  if (draggingProgress) {
+    let p = constrain((mx - RIGHT_X) / 520, 0, 1);
     sound.jump(sound.duration() * p);
   }
 
@@ -301,13 +351,8 @@ function mouseReleased() {
 ================================ */
 
 function togglePlay() {
-  if (sound.isPlaying()) {
-    sound.pause();
-    isPlaying = false;
-  } else {
-    sound.play();
-    isPlaying = true;
-  }
+  sound.isPlaying() ? sound.pause() : sound.play();
+  isPlaying = sound.isPlaying();
 }
 
 function nextTrack() {
@@ -331,22 +376,13 @@ function changeTrack(i) {
 }
 
 function onTrackEnd() {
-  if (loopMode) {
-    sound.jump(0);
-    sound.play();
-  } else {
-    nextTrack();
-  }
+  loopMode ? sound.jump(0) : nextTrack();
 }
 
 function applyEQ() {
   lowPass.freq(map(eq.low, -1, 1, 80, 600));
-  bandPass.freq(map(eq.mid, -1, 1, 250, 2500));
+  bandPass.freq(map(eq.mid, -1, 1, 300, 2500));
   highPass.freq(map(eq.high, -1, 1, 2500, 10000));
-
-  lowPass.res(map(eq.low, -1, 1, 1, 20));
-  bandPass.res(map(eq.mid, -1, 1, 1, 20));
-  highPass.res(map(eq.high, -1, 1, 1, 20));
 }
 
 /* ===============================
