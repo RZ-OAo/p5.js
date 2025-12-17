@@ -9,7 +9,6 @@ let tracks = [
   { title: "Goldberg Var. 6 – Bach", file: "assets/goldberg_var6.mp3" }
 ];
 
-let lowGain, midGain, highGain;
 let currentTrack = 0;
 let sound, fft;
 let isPlaying = false;
@@ -51,29 +50,19 @@ function setup() {
   fft = new p5.FFT();
 
   lowPass = new p5.LowPass();
-bandPass = new p5.BandPass();
-highPass = new p5.HighPass();
-
-lowGain = new p5.Gain();
-midGain = new p5.Gain();
-highGain = new p5.Gain();
+  bandPass = new p5.BandPass();
+  highPass = new p5.HighPass();
 
   setupAudioChain();
   sound.onended(onTrackEnd);
 }
 
 function setupAudioChain() {
+  sound.disconnect();
   sound.connect(lowPass);
-sound.connect(bandPass);
-sound.connect(highPass);
-
-lowPass.connect(lowGain);
-bandPass.connect(midGain);
-highPass.connect(highGain);
-
-lowGain.connect();
-midGain.connect();
-highGain.connect();
+  lowPass.connect(bandPass);
+  bandPass.connect(highPass);
+  highPass.connect();
 }
 
 /* ===============================
@@ -285,18 +274,6 @@ function mouseDragged() {
   if (draggingKnob) {
     eq[draggingKnob] = constrain(eq[draggingKnob] - (mouseY - pmouseY) * 0.01, -1, 1);
   }
-   
-   if (dist(mouseX, mouseY, 700, height - 40) < 19) {
-  loopMode = !loopMode;
-
-  if (loopMode && isPlaying) {
-    sound.loop();
-  } else if (!loopMode && isPlaying) {
-    sound.stop();
-    sound.play();
-  }
-}
-
 }
 
 function mouseReleased() {
@@ -317,8 +294,7 @@ function togglePlay() {
     sound.pause();
     isPlaying = false;
   } else {
-    if (loopMode) sound.loop();
-    else sound.play();
+    sound.play();
     isPlaying = true;
   }
 }
@@ -342,17 +318,14 @@ function changeTrack(i) {
 }
 
 function onTrackEnd() {
-  if (!loopMode) nextTrack();
+  if (loopMode) sound.play();
+  else nextTrack();
 }
 
 function applyEQ() {
-  lowPass.freq(200);
-  bandPass.freq(1200);
-  highPass.freq(4000);
-
-  lowGain.amp(map(eq.low, -1, 1, 0, 1));
-  midGain.amp(map(eq.mid, -1, 1, 0, 1));
-  highGain.amp(map(eq.high, -1, 1, 0, 1));
+  lowPass.freq(map(eq.low, -1, 1, 80, 600));
+  bandPass.freq(map(eq.mid, -1, 1, 600, 2500));
+  highPass.freq(map(eq.high, -1, 1, 2500, 10000));
 }
 
 /* ===============================
