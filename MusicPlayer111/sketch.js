@@ -202,7 +202,6 @@ function drawControls() {
   drawBtn(520, y, "⏮");
   drawBtn(580, y, isPlaying ? "⏸" : "▶");
   drawBtn(640, y, "⏭");
-  // 循環鍵已移除
 }
 
 /* ===============================
@@ -240,9 +239,9 @@ function drawKnob(x, y, val, label) {
 ================================ */
 
 function drawVolumeSlider() {
-  let x = 420;
-  let y = height - 60;
-  let w = 200;
+  let x = 760;
+  let y = height - 100;
+  let w = 160;
   let h = 8;
 
   // 背景
@@ -257,8 +256,8 @@ function drawVolumeSlider() {
   // 標示文字
   fill(180);
   textSize(12);
-  textAlign(LEFT, BOTTOM);
-  text("Volume: " + Math.round(volume * 100) + "%", x, y - 5);
+  textAlign(CENTER, BOTTOM);
+  text("Volume: " + Math.round(volume * 100) + "%", x + w/2, y - 5);
 }
 
 /* ===============================
@@ -286,7 +285,6 @@ function mousePressed() {
   if (dist(mouseX, mouseY, 580, height - 40) < 19) togglePlay();
   if (dist(mouseX, mouseY, 520, height - 40) < 19) prevTrack();
   if (dist(mouseX, mouseY, 640, height - 40) < 19) nextTrack();
-  // 循環鍵已移除
 
   if (dist(mouseX, mouseY, 240, height / 2) < 140) {
     scratching = true;
@@ -310,10 +308,10 @@ function mousePressed() {
 
   // 音量滑桿
   if (
-    mouseY > height - 60 - 5 &&
-    mouseY < height - 60 + 15 &&
-    mouseX > 420 &&
-    mouseX < 620
+    mouseY > height - 100 - 5 &&
+    mouseY < height - 100 + 15 &&
+    mouseX > 760 &&
+    mouseX < 920
   ) {
     draggingVolume = true;
     updateVolume(mouseX);
@@ -357,7 +355,7 @@ function mouseReleased() {
 }
 
 function updateVolume(mx) {
-  volume = constrain((mx - 420) / 200, 0, 1);
+  volume = constrain((mx - 760) / 160, 0, 1);
   sound.setVolume(volume);
 }
 
