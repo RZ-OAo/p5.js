@@ -15,11 +15,12 @@ let isPlaying = false;
 let loopMode = false;
 
 /* ===============================
-   AUDIO FILTERS (REAL)
+   AUDIO FILTERS
 ================================ */
 
 let lowPass, bandPass, highPass;
 let eq = { low: 0, mid: 0, high: 0 };
+let volume = 0.8;
 
 /* ===============================
    UI STATES
@@ -28,7 +29,6 @@ let eq = { low: 0, mid: 0, high: 0 };
 let vinylAngle = 0;
 let scratching = false;
 let lastMouseX = 0;
-
 let draggingProgress = false;
 let draggingKnob = null;
 
@@ -55,6 +55,7 @@ function setup() {
 
   setupAudioChain();
   sound.onended(onTrackEnd);
+  sound.setVolume(volume);
 }
 
 function setupAudioChain() {
@@ -79,6 +80,7 @@ function draw() {
   drawProgress();
   drawControls();
   drawEQ();
+  drawVolume();
 
   applyEQ();
 }
@@ -145,7 +147,7 @@ function drawPlaylist() {
   textSize(13);
   for (let i = 0; i < tracks.length; i++) {
     fill(i === currentTrack ? 220 : 120);
-    text(tracks[i].title, 420, y + i * 26);
+    text(tracks[i].title, 420, y + i * 32);
   }
 }
 
@@ -154,7 +156,7 @@ function drawPlaylist() {
 ================================ */
 
 function drawProgress() {
-  let x = 420, y = height - 90, w = 460;
+  let x = 420, y = height - 100, w = 460;
 
   stroke(80);
   line(x, y, x + w, y);
@@ -168,7 +170,10 @@ function drawProgress() {
   noStroke();
   fill(180);
   textSize(12);
-  text(formatTime(sound.currentTime()) + " / " + formatTime(sound.duration()), x, y + 18);
+  text(
+    formatTime(sound.currentTime()) + " / " + formatTime(sound.duration()),
+    x, y + 18
+  );
 }
 
 /* ===============================
@@ -176,7 +181,7 @@ function drawProgress() {
 ================================ */
 
 function drawControls() {
-  let y = height - 40;
+  let y = height - 70;
   drawBtn(520, y, "⏮");
   drawBtn(580, y, isPlaying ? "⏸" : "▶");
   drawBtn(640, y, "⏭");
@@ -184,13 +189,17 @@ function drawControls() {
 }
 
 /* ===============================
-   EQ
+   EQ + VOLUME
 ================================ */
 
 function drawEQ() {
-  drawKnob(760, height - 60, eq.low, "LOW");
-  drawKnob(820, height - 60, eq.mid, "MID");
-  drawKnob(880, height - 60, eq.high, "HIGH");
+  drawKnob(720, height - 60, eq.low, "LOW");
+  drawKnob(780, height - 60, eq.mid, "MID");
+  drawKnob(840, height - 60, eq.high, "HIGH");
+}
+
+function drawVolume() {
+  drawKnob(900, height - 60, map(volume, 0, 1, -1, 1), "VOL");
 }
 
 function drawKnob(x, y, val, label) {
@@ -212,7 +221,7 @@ function drawKnob(x, y, val, label) {
 }
 
 /* ===============================
-   BUTTON VISUAL
+   BUTTON
 ================================ */
 
 function drawBtn(x, y, label) {
@@ -226,36 +235,33 @@ function drawBtn(x, y, label) {
 }
 
 /* ===============================
-   INTERACTION (KEY FIX)
+   INTERACTION
 ================================ */
 
 function mousePressed() {
   userStartAudio();
 
-  // buttons
-  if (dist(mouseX, mouseY, 580, height - 40) < 19) togglePlay();
-  if (dist(mouseX, mouseY, 520, height - 40) < 19) prevTrack();
-  if (dist(mouseX, mouseY, 640, height - 40) < 19) nextTrack();
-  if (dist(mouseX, mouseY, 700, height - 40) < 19) loopMode = !loopMode;
+  if (dist(mouseX, mouseY, 580, height - 70) < 19) togglePlay();
+  if (dist(mouseX, mouseY, 520, height - 70) < 19) prevTrack();
+  if (dist(mouseX, mouseY, 640, height - 70) < 19) nextTrack();
+  if (dist(mouseX, mouseY, 700, height - 70) < 19) loopMode = !loopMode;
 
-  // vinyl
   if (dist(mouseX, mouseY, 240, height / 2) < 140) {
     scratching = true;
     sound.pause();
     lastMouseX = mouseX;
   }
 
-  // progress
-  let barY = height - 90;
+  let barY = height - 100;
   if (mouseY > barY - 8 && mouseY < barY + 8 &&
       mouseX > 420 && mouseX < 880) {
     draggingProgress = true;
   }
 
-  // EQ
-  if (dist(mouseX, mouseY, 760, height - 60) < 18) draggingKnob = "low";
-  if (dist(mouseX, mouseY, 820, height - 60) < 18) draggingKnob = "mid";
-  if (dist(mouseX, mouseY, 880, height - 60) < 18) draggingKnob = "high";
+  if (dist(mouseX, mouseY, 720, height - 60) < 18) draggingKnob = "low";
+  if (dist(mouseX, mouseY, 780, height - 60) < 18) draggingKnob = "mid";
+  if (dist(mouseX, mouseY, 840, height - 60) < 18) draggingKnob = "high";
+  if (dist(mouseX, mouseY, 900, height - 60) < 18) draggingKnob = "volume";
 }
 
 function mouseDragged() {
@@ -271,7 +277,12 @@ function mouseDragged() {
     sound.jump(sound.duration() * p);
   }
 
-  if (draggingKnob) {
+  if (draggingKnob === "volume") {
+    volume = constrain(volume - (mouseY - pmouseY) * 0.01, 0, 1);
+    sound.setVolume(volume);
+  }
+
+  if (draggingKnob && draggingKnob !== "volume") {
     eq[draggingKnob] = constrain(eq[draggingKnob] - (mouseY - pmouseY) * 0.01, -1, 1);
   }
 }
@@ -312,20 +323,30 @@ function changeTrack(i) {
   currentTrack = i;
   sound = loadSound(tracks[i].file, () => {
     setupAudioChain();
+    sound.onended(onTrackEnd);
+    sound.setVolume(volume);
     sound.play();
     isPlaying = true;
   });
 }
 
 function onTrackEnd() {
-  if (loopMode) sound.play();
-  else nextTrack();
+  if (loopMode) {
+    sound.jump(0);
+    sound.play();
+  } else {
+    nextTrack();
+  }
 }
 
 function applyEQ() {
   lowPass.freq(map(eq.low, -1, 1, 80, 600));
-  bandPass.freq(map(eq.mid, -1, 1, 600, 2500));
+  bandPass.freq(map(eq.mid, -1, 1, 250, 2500));
   highPass.freq(map(eq.high, -1, 1, 2500, 10000));
+
+  lowPass.res(map(eq.low, -1, 1, 1, 20));
+  bandPass.res(map(eq.mid, -1, 1, 1, 20));
+  highPass.res(map(eq.high, -1, 1, 1, 20));
 }
 
 /* ===============================
