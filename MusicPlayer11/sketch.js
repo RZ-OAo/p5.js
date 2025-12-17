@@ -12,11 +12,9 @@ let tracks = [
 let currentTrack = 0;
 let sound, fft;
 let isPlaying = false;
-let loopMode = false;
-let trackEnded = false; // ★新增：避免重複觸發
 
 /* ===============================
-   AUDIO FILTERS
+   AUDIO FILTERS (REAL)
 ================================ */
 
 let lowPass, bandPass, highPass;
@@ -31,6 +29,10 @@ let scratching = false;
 let lastMouseX = 0;
 let draggingProgress = false;
 let draggingKnob = null;
+
+// 音量控制
+let volume = 0.8; // 預設 80%
+let draggingVolume = false;
 
 /* ===============================
    CANVAS
@@ -54,6 +56,7 @@ function setup() {
   highPass = new p5.HighPass();
 
   setupAudioChain();
+  sound.setVolume(volume); // 設定初始音量
 }
 
 function setupAudioChain() {
@@ -78,32 +81,10 @@ function draw() {
   drawProgress();
   drawControls();
   drawEQ();
+  drawVolumeSlider();
 
   applyEQ();
-  checkTrackEnd(); // ★唯一新增呼叫
-}
-
-/* ===============================
-   ★循環修正核心
-================================ */
-
-function checkTrackEnd() {
-  if (
-    isPlaying &&
-    sound.isLoaded() &&
-    !trackEnded &&
-    sound.currentTime() >= sound.duration() - 0.05
-  ) {
-    trackEnded = true;
-
-    if (loopMode) {
-      sound.jump(0);
-      sound.play();
-      trackEnded = false;
-    } else {
-      nextTrack();
-    }
-  }
+  sound.setVolume(volume);
 }
 
 /* ===============================
@@ -117,13 +98,16 @@ function drawVinyl() {
 
   push();
   translate(cx, cy);
+
   if (isPlaying && !scratching) vinylAngle += 0.02;
   rotate(vinylAngle);
 
   stroke(80);
   noFill();
   ellipse(0, 0, r * 2);
-  for (let i = 60; i < r * 2; i += 12) ellipse(0, 0, i);
+  for (let i = 60; i < r * 2; i += 12) {
+    ellipse(0, 0, i);
+  }
 
   fill(20);
   noStroke();
@@ -137,6 +121,7 @@ function drawVinyl() {
 
 function drawSpectrum() {
   let spectrum = fft.analyze();
+
   push();
   translate(500, height / 2);
   noFill();
@@ -149,6 +134,7 @@ function drawSpectrum() {
     curveVertex(x, y);
   }
   endShape();
+
   pop();
 }
 
@@ -169,6 +155,7 @@ function drawTrackInfo() {
 function drawPlaylist() {
   let y = 90;
   textSize(13);
+
   for (let i = 0; i < tracks.length; i++) {
     fill(i === currentTrack ? 220 : 120);
     text(tracks[i].title, 420, y + i * 26);
@@ -196,7 +183,13 @@ function drawProgress() {
   noStroke();
   fill(180);
   textSize(12);
-  text(formatTime(sound.currentTime()) + " / " + formatTime(sound.duration()), x, y + 18);
+  text(
+    formatTime(sound.currentTime()) +
+      " / " +
+      formatTime(sound.duration()),
+    x,
+    y + 18
+  );
 }
 
 /* ===============================
@@ -205,10 +198,11 @@ function drawProgress() {
 
 function drawControls() {
   let y = height - 40;
+
   drawBtn(520, y, "⏮");
   drawBtn(580, y, isPlaying ? "⏸" : "▶");
   drawBtn(640, y, "⏭");
-  drawBtn(700, y, loopMode ? "🔁" : "➡");
+  // 循環鍵已移除
 }
 
 /* ===============================
@@ -219,6 +213,152 @@ function drawEQ() {
   drawKnob(760, height - 60, eq.low, "LOW");
   drawKnob(820, height - 60, eq.mid, "MID");
   drawKnob(880, height - 60, eq.high, "HIGH");
+}
+
+function drawKnob(x, y, val, label) {
+  push();
+  translate(x, y);
+  fill(30);
+  stroke(120);
+  ellipse(0, 0, 36);
+
+  rotate(map(val, -1, 1, -PI * 0.75, PI * 0.75));
+  stroke(220);
+  line(0, 0, 0, -14);
+
+  pop();
+
+  fill(120);
+  noStroke();
+  textSize(10);
+  textAlign(CENTER);
+  text(label, x, y + 26);
+}
+
+/* ===============================
+   VOLUME SLIDER
+================================ */
+
+function drawVolumeSlider() {
+  let x = 420;
+  let y = height - 60;
+  let w = 200;
+  let h = 8;
+
+  // 背景
+  fill(50);
+  noStroke();
+  rect(x, y, w, h, 4);
+
+  // 音量條
+  fill(200);
+  rect(x, y, w * volume, h, 4);
+
+  // 標示文字
+  fill(180);
+  textSize(12);
+  textAlign(LEFT, BOTTOM);
+  text("Volume: " + Math.round(volume * 100) + "%", x, y - 5);
+}
+
+/* ===============================
+   BUTTON VISUAL
+================================ */
+
+function drawBtn(x, y, label) {
+  fill(30);
+  stroke(120);
+  ellipse(x, y, 38);
+
+  fill(230);
+  noStroke();
+  textAlign(CENTER, CENTER);
+  text(label, x, y);
+}
+
+/* ===============================
+   INTERACTION
+================================ */
+
+function mousePressed() {
+  userStartAudio();
+
+  if (dist(mouseX, mouseY, 580, height - 40) < 19) togglePlay();
+  if (dist(mouseX, mouseY, 520, height - 40) < 19) prevTrack();
+  if (dist(mouseX, mouseY, 640, height - 40) < 19) nextTrack();
+  // 循環鍵已移除
+
+  if (dist(mouseX, mouseY, 240, height / 2) < 140) {
+    scratching = true;
+    sound.pause();
+    lastMouseX = mouseX;
+  }
+
+  let barY = height - 90;
+  if (
+    mouseY > barY - 8 &&
+    mouseY < barY + 8 &&
+    mouseX > 420 &&
+    mouseX < 880
+  ) {
+    draggingProgress = true;
+  }
+
+  if (dist(mouseX, mouseY, 760, height - 60) < 18) draggingKnob = "low";
+  if (dist(mouseX, mouseY, 820, height - 60) < 18) draggingKnob = "mid";
+  if (dist(mouseX, mouseY, 880, height - 60) < 18) draggingKnob = "high";
+
+  // 音量滑桿
+  if (
+    mouseY > height - 60 - 5 &&
+    mouseY < height - 60 + 15 &&
+    mouseX > 420 &&
+    mouseX < 620
+  ) {
+    draggingVolume = true;
+    updateVolume(mouseX);
+  }
+}
+
+function mouseDragged() {
+  if (scratching && sound.isLoaded()) {
+    let dx = mouseX - lastMouseX;
+    sound.jump(
+      constrain(sound.currentTime() + dx * 0.01, 0, sound.duration())
+    );
+    vinylAngle += dx * 0.01;
+    lastMouseX = mouseX;
+  }
+
+  if (draggingProgress && sound.isLoaded()) {
+    let p = constrain((mouseX - 420) / 460, 0, 1);
+    sound.jump(sound.duration() * p);
+  }
+
+  if (draggingKnob) {
+    eq[draggingKnob] = constrain(
+      eq[draggingKnob] - (mouseY - pmouseY) * 0.01,
+      -1,
+      1
+    );
+  }
+
+  if (draggingVolume) updateVolume(mouseX);
+}
+
+function mouseReleased() {
+  if (scratching) {
+    scratching = false;
+    sound.play();
+  }
+  draggingProgress = false;
+  draggingKnob = null;
+  draggingVolume = false;
+}
+
+function updateVolume(mx) {
+  volume = constrain((mx - 420) / 200, 0, 1);
+  sound.setVolume(volume);
 }
 
 /* ===============================
@@ -232,7 +372,6 @@ function togglePlay() {
   } else {
     sound.play();
     isPlaying = true;
-    trackEnded = false;
   }
 }
 
@@ -247,18 +386,13 @@ function prevTrack() {
 function changeTrack(i) {
   sound.stop();
   currentTrack = i;
-  trackEnded = false;
-
   sound = loadSound(tracks[i].file, () => {
     setupAudioChain();
     sound.play();
+    sound.setVolume(volume); // 保持音量
     isPlaying = true;
   });
 }
-
-/* ===============================
-   EQ APPLY
-================================ */
 
 function applyEQ() {
   lowPass.freq(map(eq.low, -1, 1, 80, 600));
